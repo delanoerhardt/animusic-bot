@@ -8,4 +8,5 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % "2.10.1",
   "javax.json" % "javax.json-api" % "latest.integration",
   "org.glassfish" % "javax.json" % "latest.integration",
+  "net.debasishg" %% "redisclient" % "3.30",
 )
