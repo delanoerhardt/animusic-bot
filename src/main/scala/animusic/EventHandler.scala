@@ -28,7 +28,7 @@ class EventHandler(val id: Long) extends ListenerAdapter {
     command match {
       case "die" =>
         event.getJDA.shutdownNow()
-      case query: String =>
+      case query: String if(query.length > 0) =>
         val name = query.filterNot("/{}\"".toSet)
         val callbackHandler = new CallbackHandler()
         
@@ -38,6 +38,7 @@ class EventHandler(val id: Long) extends ListenerAdapter {
           .queue(callbackHandler.onMessageSent)
 
         EventHandler.requestSongs(name, 0, callbackHandler)
+      case _ =>
     }
   }
 
@@ -59,7 +60,13 @@ class EventHandler(val id: Long) extends ListenerAdapter {
 
     Animusic.getMessageQuery(event.getMessageId) match {
       case Some(oldQueryPage) => {
-
+        Animusic.getEntryAmmount(event.getMessageId) match {
+          case Some(quantity) => 
+            if(quantity.toInt < 12) 
+              return
+          case _ => return
+        }
+        
         val queryAndPage = oldQueryPage.split(":")
 
         val nextPageList = (queryAndPage(0), (queryAndPage(1).toInt + deltaPage).max(0))
@@ -71,8 +78,13 @@ class EventHandler(val id: Long) extends ListenerAdapter {
 
         Animusic.getCachedQuery(nextPageKey) match {
           case Some(cachedQueryResult) if(cachedQueryResult.length != 0) => {
+
+            callbackHandler.entryAmmount = cachedQueryResult.head.getOrElse("0").toInt
             
-            callbackHandler.nameAndLinksList = (for {Some(a) <- cachedQueryResult} yield a)
+            if(callbackHandler.entryAmmount == 0)
+              return
+
+            callbackHandler.nameAndLinksList = (for {Some(a) <- cachedQueryResult.tail} yield a)
             callbackHandler.query = nextPageList._1
             callbackHandler.page = nextPageList._2
 

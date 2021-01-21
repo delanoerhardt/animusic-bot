@@ -21,6 +21,7 @@ class CallbackHandler() extends Callback {
   var messageId: Long = 0L
   var query: String = null
   var page: Int = 0
+  var entryAmmount: Int = 0
 
   var nameAndLinksList: List[String] = List()
 
@@ -33,18 +34,19 @@ class CallbackHandler() extends Callback {
   override def onResponse(call: Call, response: Response): Unit = {
     this.synchronized { 
       this.response = response
-      val (nameAndLinksList, query, page) = CallbackHandler.parseJsonResponse(response)
+      val (nameAndLinksList, query, page, entryAmmount) = CallbackHandler.parseJsonResponse(response)
 
       response.body.close()
       response.close()
       
+      Animusic.storeQueryResult(s"${query}:${page}", nameAndLinksList, entryAmmount)
+
       if(nameAndLinksList.length == 0)
         return
       
       this.query = query
       this.page = page
-
-      Animusic.storeQueryResult(s"${query}:${page}", nameAndLinksList)
+      this.entryAmmount = entryAmmount
       
       this.nameAndLinksList = nameAndLinksList
       
@@ -68,13 +70,11 @@ class CallbackHandler() extends Callback {
   }
 
   def sendEmbedWithSongs(): Unit = {
-    println("LOL1")
-    if(this.nameAndLinksList.length == 0) {
-      println("LOL2")
+
+    if(this.nameAndLinksList.length == 0)
       return
-    }
     
-    Animusic.storeMessageQuery(this.messageId.toString, s"${this.query}:${this.page}")
+    Animusic.storeMessageQuery(this.messageId.toString, s"${this.query}:${this.page}", this.entryAmmount)
 
     val embedMessage = CallbackHandler.getEmbedMessage(nameAndLinksList)
 
@@ -90,13 +90,14 @@ class CallbackHandler() extends Callback {
 object CallbackHandler {
 
   // TODO store title ammount per page and use it to avoid requesting an empty page
-  def parseJsonResponse(response: Response): (List[String], String, Int) = {
+  def parseJsonResponse(response: Response): (List[String], String, Int, Int) = {
     val jsonParser = Json.createParser(response.body.byteStream())
 
     var nameAndLinksList: List[String] = List()
 
     var page = -1
     var query = ""
+    var entryAmmount = 0
 
     var readTitleOrLink = false
     var ignoreNextTitles = false
@@ -110,11 +111,16 @@ object CallbackHandler {
           case "titles" => 
             readTitleOrLink = !ignoreNextTitles
             ignoreNextTitles = false
+            
+            if(readTitleOrLink)
+              entryAmmount += 1
           case "spotify_url" =>
             readTitleOrLink = true
           case "title" =>
             readTitleOrLink = true
             ignoreNextTitles = true
+            
+            entryAmmount += 1
           case "page" =>
             readPageNumber = true
           case "query" =>
@@ -136,7 +142,7 @@ object CallbackHandler {
 
     jsonParser.close()
 
-    (nameAndLinksList, query, page)
+    (nameAndLinksList, query, page, entryAmmount)
   }
 
   def getEmbedMessage(nameAndLinksList: List[String]) = {
