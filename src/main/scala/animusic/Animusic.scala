@@ -28,7 +28,7 @@ object Animusic {
     val a: JDA = JDABuilder.createDefault(key).addEventListeners(new ListenerAdapter {
       override def onReady(event: ReadyEvent) = println("Listening")
     }).setActivity(Activity.playing(":3help")).build()
-    a.addEventListener(new EventHandler(a.getSelfUser.getIdLong))
+    a.addEventListener(new DiscordEventHandler(a.getSelfUser.getIdLong))
   }
 
   def generateEmbedMessage(nameAndLinksList: List[String]) = {

@@ -10,7 +10,6 @@ object RedisInterface {
   val redisClients = new RedisClientPool("localhost", 6379)
 
   val TIME_TO_EXPIRE_WITHOU_INTERACTION: Int = 30
-
   val TIME_TO_EXPIRE_QUERIES: Int = 180
 
   def storeQueryResult(key: String, list: List[String], entryAmmount: Int) = Future {

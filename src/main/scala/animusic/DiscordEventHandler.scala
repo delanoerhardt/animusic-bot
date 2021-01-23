@@ -19,7 +19,7 @@ class DiscordEventHandler(val id: Long) extends ListenerAdapter {
 
     event.getMessage.getContentDisplay.split(prefix).drop(1).foldLeft("")(_ + _).filterNot("/{}\"".toSet) match {
       case "help" =>
-        event.getChannel.sendMessage("Type :3 followed by the name of the anime you wish to search musics of, ie: \":3one piece\"")
+        event.getChannel.sendMessage(s"Type ${prefix} followed by the name of the anime you wish to search musics of, ie: '${prefix}one piece'")
           .reference(event.getMessage).queue()
       case name: String =>
         val callbackHandler = new CallbackHandler()
