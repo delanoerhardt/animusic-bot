@@ -1,35 +1,20 @@
 package animusic
 
-import scala.concurrent.Future
+import java.awt.Color
 
-import scala.util.Failure
-import scala.util.Success
+import scala.util.{Failure, Success}
 
+import net.dv8tion.jda.api.entities.Activity
+import net.dv8tion.jda.api.EmbedBuilder
 import net.dv8tion.jda.api.{JDA, JDABuilder}
 import net.dv8tion.jda.api.hooks.ListenerAdapter
-import net.dv8tion.jda.api.events.ReadyEvent
 import net.dv8tion.jda.api.requests.restaction.MessageAction
-
-import com.redis._
-
-import okhttp3.{OkHttpClient, MediaType}
+import net.dv8tion.jda.api.events.ReadyEvent
 
 import Utils._
 
 object Animusic {
   MessageAction.setDefaultMentionRepliedUser(false)
-
-  implicit val ec: scala.concurrent.ExecutionContext = scala.concurrent.ExecutionContext.global
-
-  val redisClients = new RedisClientPool("localhost", 6379)
-
-  val client = new OkHttpClient()
-
-  val MEDIA_TYPE_JSON = MediaType.get("application/json; charset=utf-8")
-  
-  val TIME_TO_EXPIRE_WITHOU_INTERACTION: Int = 30
-
-  val TIME_TO_EXPIRE_QUERIES: Int = 180
 
   def main(args: Array[String]): Unit = {
     val key: String = getKey() match {
@@ -42,58 +27,39 @@ object Animusic {
 
     val a: JDA = JDABuilder.createDefault(key).addEventListeners(new ListenerAdapter {
       override def onReady(event: ReadyEvent) = println("Listening")
-    }).build()
+    }).setActivity(Activity.playing(":3help")).build()
     a.addEventListener(new EventHandler(a.getSelfUser.getIdLong))
   }
 
-  def storeQueryResult(key: String, list: List[String], entryAmmount: Int) = Future {
-    redisClients.withClient {
-      client => {
-        client.rpush(key, entryAmmount)
-        list.foreach { client.rpush(key, _) }
-        client.expire(key, TIME_TO_EXPIRE_QUERIES)
-      }
-    }
-  }
+  def generateEmbedMessage(nameAndLinksList: List[String]) = {
+    var finalMessage = ""
+    
+    var previousWasLink = false
+    var linkNumber = 1
 
-  def storeMessageQuery(messageId: String, queryPage: String, entryAmmount: Int) = Future {
-    redisClients.withClient {
-      client => {
-        client.setex(messageId, TIME_TO_EXPIRE_WITHOU_INTERACTION, queryPage)
-        client.setex(s"${messageId}_entryAmmount", TIME_TO_EXPIRE_WITHOU_INTERACTION, entryAmmount.toString())
-      }
-    }
-  }
-  
-  def updateExpire(oldQueryPage: String) = Future {
-    redisClients.withClient {
-      client => {
-        client.expire(oldQueryPage, TIME_TO_EXPIRE_QUERIES)
-      }
-    }
-  }
+    val embedBuilder = new EmbedBuilder().setColor(new Color(0x66baff))
 
-  def getMessageQuery(messageId: String) = {
-    redisClients.withClient {
-      client => {
-        client.get(messageId)
-      }
-    }
-  }
+    nameAndLinksList.foreach((el) => {
+      if(!el.startsWith("https://open.spotify.com/")) {
+        linkNumber = 1
+        previousWasLink = false
 
-  def getEntryAmmount(messageId: String) = {
-    redisClients.withClient {
-      client => {
-        client.get(s"${messageId}_entryAmmount")
-      }
-    }
-  }
+        if(finalMessage.length != 0)
+          embedBuilder.addField("", finalMessage, false)
 
-  def getCachedQuery(nextPageKey: String) = {
-    redisClients.withClient {
-      client => {
-        client.lrange(nextPageKey, 0, -1)
+        finalMessage = f"${el}%s \u200b \u200b \u200b"
+      } else if(!previousWasLink) {
+        finalMessage += f" \u200b [[link${linkNumber}%d]](${el}%s)"
+ 
+        previousWasLink = true
+        linkNumber += 1
+      } else {
+        finalMessage += f" \u200b [[link${linkNumber}%d]](${el}%s)"
+
+        linkNumber += 1
       }
-    }
+    })
+
+    embedBuilder.addField("", finalMessage, false).build()
   }
 }
